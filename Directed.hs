@@ -13,7 +13,7 @@ data PartialProgram = Program PartialExpression SizeLeft
   deriving Show
 
 data PartialExpression = Unforced
-                       | If0 PartialExpression PartialExpression PartialExpression
+                       | If0 S.Expression PartialExpression PartialExpression
                        | Fold PartialExpression PartialExpression PartialExpression
                        | Op1 Op1 PartialExpression
                        | Op2 Op2 S.Expression PartialExpression
@@ -58,7 +58,13 @@ search = error "TODO"
 searchExpression :: PartialExpression -> [Value] -> Target
                  -> Constraints -> SizeLeft -> [(SizeLeft, PartialExpression)]
 searchExpression Unforced vals target constraints sizeleft                  = [] {- TODO -}
-searchExpression (If0 c ift iff) vals target constraints sizeleft           = [] {- TODO -}
+
+searchExpression (If0 c ift iff) vals target constraints sizeleft           = do
+  let lval = S.evalExpression c vals
+  if lval == 0
+    then searchExpression ift vals target constraints sizeleft
+    else searchExpression iff vals target constraints sizeleft
+
 searchExpression (Fold over init function) vals target constraints sizeleft = [] {- TODO -}
 
 searchExpression (Op1 op exp) vals target constraints sizeleft = do
@@ -116,6 +122,9 @@ invertOp2 t@Target { targetBits, importantMask } lhs op
 
     {- rats, so it turns out the Plus case is .h.a.r.d. -}
     {- super naieve - enumerate all options for unset targetBits -}
+    {- TODO: it's probably better here to split, and more often than not signal
+     -        that the rhs' should be generated instead of enumerating all 2^64
+     -        target values. -}
   | Plus <- op = do value <- enumerateTargets t
                     let rb = value - lhs
                     let ri = 0xFFFFFFFFFFFFFFFF
