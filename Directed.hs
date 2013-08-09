@@ -35,6 +35,9 @@ data Target
   , importantMask :: Word64
   }
 
+c_PLUS_SPLIT_POINT :: Int
+c_PLUS_SPLIT_POINT = 10
+
 satisfies :: Word64 -> Target -> Bool
 satisfies value (Target { targetBits, importantMask })
   = (value .&. importantMask) == (targetBits .&. importantMask)
@@ -44,9 +47,14 @@ data Constraints
   { allowedOp1s :: [Op1]
   , allowedOp2s :: [Op2]
   , size :: Int8
-  , hasFold :: Bool
-  , hasTFold :: Bool
+  , foldAvailable :: Bool
+  , tfoldAvailable :: Bool
   }
+{- TODO: push this around searchExpression instead of just sizeLeft.
+ -       take into accounts op1s and op2s that need to be used within
+ -       size limit remaining.
+ -       capture the size limit remaining in here.
+ -}
 
 search :: PartialProgram -> Input -> Output -> Constraints -> [PartialProgram]
 search = error "TODO"
@@ -59,14 +67,14 @@ searchExpression (If0 c ift iff) vals target constraints sizeleft           = []
 searchExpression (Fold over init function) vals target constraints sizeleft = [] {- TODO -}
 
 searchExpression (Op1 op exp) vals target constraints sizeleft = do
-  let target' = invertOp1 target op
+  target' <- maybeToList (invertOp1 target op)
   (sizeleft', exp') <- searchExpression exp vals target' constraints sizeleft
   let rv = castConcrete1 exp' (Op1 op) (Concrete . S.Op1 op)
   return (sizeleft', rv)
 
 searchExpression (Op2 op lhs rhs) vals target constraints sizeleft = do
   let lval = S.evalExpression lhs vals
-  target' <- maybeToList (invertOp2 target lval op)
+  target' <- invertOp2 target lval op
   (sizeleft', rhs') <- searchExpression rhs vals target' constraints sizeleft
   let rv = castConcrete1 rhs' (Op2 op lhs) (Concrete . S.Op2 op lhs)
   error "TODO"
@@ -80,26 +88,50 @@ castConcrete1 :: PartialExpression -> (PartialExpression -> a)
 castConcrete1 (Concrete s) _ f = f s
 castConcrete1 e f _ = f e
 
-invertOp1 :: Target -> Op1 -> Target
+invertOp1 :: Target -> Op1 -> Maybe Target
 invertOp1 t@Target { targetBits, importantMask } op
-  | Not   <- op = t { targetBits = complement targetBits }
-  | Shl1  <- op = t { targetBits = shiftR targetBits 1,
+  | Not   <- op = Just t { targetBits = complement targetBits }
+  | Shl1  <- op = (error "TODO: pruning on lost high bits!") t { targetBits = shiftR targetBits 1,
                       importantMask = shiftR importantMask 1 }
-  | Shr1  <- op = t { targetBits = shiftL targetBits 1,
+  | Shr1  <- op = (error "TODO: pruning!") t { targetBits = shiftL targetBits 1,
                       importantMask = shiftL importantMask 1 }
-  | Shr4  <- op = t { targetBits = shiftL targetBits 4,
+  | Shr4  <- op = (error "TODO: pruning!") t { targetBits = shiftL targetBits 4,
                       importantMask = shiftL importantMask 4 }
-  | Shr16 <- op = t { targetBits = shiftL targetBits 16,
+  | Shr16 <- op = (error "TODO: pruning!") t { targetBits = shiftL targetBits 16,
                       importantMask = shiftL importantMask 16 }
 
 
-invertOp2 :: Target -> Word64 -> Op2 -> Maybe Target
+invertOp2 :: Target -> Word64 -> Op2 -> [Target]
 invertOp2 t@Target { targetBits, importantMask } lhs op
-  | And  <- op = do let rt    = targetBits
-                    let rm    = importantMask .&. lhs
+  | And  <- op = do let rb    = targetBits
+                    let ri    = importantMask .&. lhs
                     let prune = targetBits .&. importantMask .&. (complement lhs)
                     guard (prune == 0)
-                    return Target { targetBits = rt, importantMask = rm }
-  | Or   <- op = error "TODO"
-  | Xor  <- op = error "TODO"
-  | Plus <- op = error "TODO"
+                    return Target { targetBits = rb, importantMask = ri }
+
+  | Or   <- op = do let rb    = targetBits
+                    let ri    = importantMask .&. (complement (targetBits .&. lhs))
+                    let prune = complement targetBits .&. importantMask .&. lhs
+                    guard (prune == 0)
+                    return Target { targetBits = rb, importantMask = ri }
+
+  | Xor  <- op = do let rb = targetBits `xor` lhs
+                    let ri = importantMask
+                    return Target { targetBits = rb, importantMask = ri }
+
+    {- rats, so it turns out the Plus case is .h.a.r.d. -}
+    {- super naieve - enumerate all options for unset targetBits -}
+  | Plus <- op = do value <- enumerateTargets t
+                    let rb = value - lhs
+                    let ri = 0xFFFFFFFFFFFFFFFF
+                    return Target { targetBits = rb, importantMask = ri }
+
+enumerateTargets :: Target -> [Word64]
+enumerateTargets Target { targetBits, importantMask }
+  = let base = targetBits .&. importantMask
+     in foldM build base [0..64]
+  where
+    build :: Word64 -> Int -> [Word64]
+    build a idx
+      | testBit importantMask idx = [a]
+      | otherwise                 = [setBit a idx, clearBit a idx]
