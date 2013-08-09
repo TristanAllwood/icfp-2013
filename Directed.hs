@@ -4,6 +4,7 @@ module Directed where
 import Control.Monad
 import Data.Bits
 import Data.Int
+import Data.Maybe
 import Data.Word
 import Syntax (Var, Op1(..), Op2(..), Value)
 import qualified Syntax as S
@@ -53,9 +54,9 @@ search = error "TODO"
 searchExpression :: PartialExpression -> [Value] -> Target
                  -> Constraints -> SizeLeft -> [(SizeLeft, PartialExpression)]
 searchExpression Unforced vals target constraints sizeleft                  = [] {- TODO -}
-searchExpression (Terminal terminals) vals target constraints sizeleft      = []
-searchExpression (If0 c ift iff) vals target constraints sizeleft           = []
-searchExpression (Fold over init function) vals target constraints sizeleft = []
+searchExpression (Terminal terminals) vals target constraints sizeleft      = [] {- TODO -}
+searchExpression (If0 c ift iff) vals target constraints sizeleft           = [] {- TODO -}
+searchExpression (Fold over init function) vals target constraints sizeleft = [] {- TODO -}
 
 searchExpression (Op1 op exp) vals target constraints sizeleft = do
   let target' = invertOp1 target op
@@ -63,14 +64,19 @@ searchExpression (Op1 op exp) vals target constraints sizeleft = do
   let rv = castConcrete1 exp' (Op1 op) (Concrete . S.Op1 op)
   return (sizeleft', rv)
 
-searchExpression (Op2 ops lhs rhs) vals target constraints sizeleft         = []
+searchExpression (Op2 op lhs rhs) vals target constraints sizeleft = do
+  let lval = S.evalExpression lhs vals
+  target' <- maybeToList (invertOp2 target lval op)
+  (sizeleft', rhs') <- searchExpression rhs vals target' constraints sizeleft
+  let rv = castConcrete1 rhs' (Op2 op lhs) (Concrete . S.Op2 op lhs)
+  error "TODO"
 
-
-searchExpression c@(Concrete exp) vals target constraints sizeleft            = do
+searchExpression c@(Concrete exp) vals target constraints sizeleft = do
   guard $ (S.evalExpression exp vals) `satisfies` target
   return (sizeleft, c)
 
-castConcrete1 :: PartialExpression -> (PartialExpression -> a) -> (S.Expression -> a) -> a
+castConcrete1 :: PartialExpression -> (PartialExpression -> a)
+              -> (S.Expression -> a) -> a
 castConcrete1 (Concrete s) _ f = f s
 castConcrete1 e f _ = f e
 
@@ -87,3 +93,13 @@ invertOp1 t@Target { targetBits, importantMask } op
                       importantMask = shiftL importantMask 16 }
 
 
+invertOp2 :: Target -> Word64 -> Op2 -> Maybe Target
+invertOp2 t@Target { targetBits, importantMask } lhs op
+  | And  <- op = do let rt    = targetBits
+                    let rm    = importantMask .&. lhs
+                    let prune = targetBits .&. importantMask .&. (complement lhs)
+                    guard (prune == 0)
+                    return Target { targetBits = rt, importantMask = rm }
+  | Or   <- op = error "TODO"
+  | Xor  <- op = error "TODO"
+  | Plus <- op = error "TODO"
