@@ -62,8 +62,14 @@ searchExpression Unforced vals target constraints sizeleft                  = []
 searchExpression (If0 c ift iff) vals target constraints sizeleft           = do
   let lval = S.evalExpression c vals
   if lval == 0
-    then searchExpression ift vals target constraints sizeleft
-    else searchExpression iff vals target constraints sizeleft
+    then do
+      (sizeleft', ift') <- searchExpression ift vals target constraints sizeleft
+      let rv = castConcrete2 ift' iff (If0 c) ((Concrete .) . S.If0 c)
+      return (sizeleft', rv)
+    else do
+      (sizeleft', iff') <- searchExpression iff vals target constraints sizeleft
+      let rv = castConcrete2 ift iff' (If0 c) ((Concrete .) . S.If0 c)
+      return (sizeleft', rv)
 
 searchExpression (Fold over init function) vals target constraints sizeleft = [] {- TODO -}
 
@@ -88,6 +94,11 @@ castConcrete1 :: PartialExpression -> (PartialExpression -> a)
               -> (S.Expression -> a) -> a
 castConcrete1 (Concrete s) _ f = f s
 castConcrete1 e f _ = f e
+
+castConcrete2 :: PartialExpression -> PartialExpression -> (PartialExpression -> PartialExpression -> a)
+              -> (S.Expression -> S.Expression -> a) -> a
+castConcrete2 (Concrete l) (Concrete r) _ f = f l r
+castConcrete2 l r f _ = f l r
 
 invertOp1 :: Target -> Op1 -> Maybe Target
 invertOp1 t@Target { targetBits, importantMask } op
