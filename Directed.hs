@@ -13,16 +13,12 @@ data PartialProgram = Program PartialExpression SizeLeft
   deriving Show
 
 data PartialExpression = Unforced
-                       | Terminal Terminal
                        | If0 PartialExpression PartialExpression PartialExpression
                        | Fold PartialExpression PartialExpression PartialExpression
                        | Op1 Op1 PartialExpression
                        | Op2 Op2 S.Expression PartialExpression
                        | Concrete S.Expression
    deriving Show
-
-data Terminal = Zero | One | Var Var
-  deriving Show
 
 type SizeLeft = Int8
 
@@ -62,7 +58,6 @@ search = error "TODO"
 searchExpression :: PartialExpression -> [Value] -> Target
                  -> Constraints -> SizeLeft -> [(SizeLeft, PartialExpression)]
 searchExpression Unforced vals target constraints sizeleft                  = [] {- TODO -}
-searchExpression (Terminal terminals) vals target constraints sizeleft      = [] {- TODO -}
 searchExpression (If0 c ift iff) vals target constraints sizeleft           = [] {- TODO -}
 searchExpression (Fold over init function) vals target constraints sizeleft = [] {- TODO -}
 
@@ -77,7 +72,7 @@ searchExpression (Op2 op lhs rhs) vals target constraints sizeleft = do
   target' <- invertOp2 target lval op
   (sizeleft', rhs') <- searchExpression rhs vals target' constraints sizeleft
   let rv = castConcrete1 rhs' (Op2 op lhs) (Concrete . S.Op2 op lhs)
-  error "TODO"
+  return (sizeleft', rv)
 
 searchExpression c@(Concrete exp) vals target constraints sizeleft = do
   guard $ (S.evalExpression exp vals) `satisfies` target
