@@ -62,14 +62,14 @@ searchExpression Unforced vals target constraints sizeleft                  = []
 searchExpression (If0 c ift iff) vals target constraints sizeleft           = do
   let lval = S.evalExpression c vals
   if lval == 0
-    then do
+  then do
       (sizeleft', ift') <- searchExpression ift vals target constraints sizeleft
       let rv = castConcrete2 ift' iff (If0 c) ((Concrete .) . S.If0 c)
       return (sizeleft', rv)
-    else do
-      (sizeleft', iff') <- searchExpression iff vals target constraints sizeleft
-      let rv = castConcrete2 ift iff' (If0 c) ((Concrete .) . S.If0 c)
-      return (sizeleft', rv)
+  else do
+    (sizeleft', iff') <- searchExpression iff vals target constraints sizeleft
+    let rv = castConcrete2 ift iff' (If0 c) ((Concrete .) . S.If0 c)
+    return (sizeleft', rv)
 
 searchExpression (Fold over init function) vals target constraints sizeleft = [] {- TODO -}
 
@@ -103,14 +103,19 @@ castConcrete2 l r f _ = f l r
 invertOp1 :: Target -> Op1 -> Maybe Target
 invertOp1 t@Target { targetBits, importantMask } op
   | Not   <- op = Just t { targetBits = complement targetBits }
-  | Shl1  <- op = (error "TODO: pruning on lost high bits!") t { targetBits = shiftR targetBits 1,
-                      importantMask = shiftR importantMask 1 }
-  | Shr1  <- op = (error "TODO: pruning!") t { targetBits = shiftL targetBits 1,
-                      importantMask = shiftL importantMask 1 }
-  | Shr4  <- op = (error "TODO: pruning!") t { targetBits = shiftL targetBits 4,
-                      importantMask = shiftL importantMask 4 }
-  | Shr16 <- op = (error "TODO: pruning!") t { targetBits = shiftL targetBits 16,
-                      importantMask = shiftL importantMask 16 }
+
+  | Shl1  <- op = do guard ((importantMask .&. bit 0 .&. targetBits) == 0)
+                     return t { targetBits = shiftR targetBits 1,
+                                importantMask = shiftR importantMask 1 }
+  | Shr1  <- op = do guard ((importantMask .&. bit 63 .&. targetBits) == 0)
+                     return t { targetBits = shiftL targetBits 1,
+                                importantMask = shiftL importantMask 1 }
+  | Shr4  <- op = do guard ((importantMask .&. 0xF000000000000000 .&. targetBits) == 0)
+                     return t { targetBits = shiftL targetBits 4,
+                                importantMask = shiftL importantMask 4 }
+  | Shr16 <- op = do guard ((importantMask .&. 0xFFFF000000000000 .&. targetBits) == 0)
+                     return t { targetBits = shiftL targetBits 16,
+                                importantMask = shiftL importantMask 16 }
 
 
 invertOp2 :: Target -> Word64 -> Op2 -> [Target]
