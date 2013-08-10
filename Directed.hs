@@ -33,6 +33,17 @@ data Target
   , importantMask :: Word64
   }
 
+concretize :: PartialExpression -> S.Expression
+concretize Unforced         = S.Zero
+concretize (If0 c l r)      = S.If0 c (concretize l) (concretize r)
+concretize (Fold e0 e1 e2)  = S.Fold (concretize e0) (concretize e1) (concretize e2)
+concretize (Op1 o e)        = S.Op1 o (concretize e)
+concretize (Op2 o e0 e1)    = S.Op2 o e0 (concretize e1)
+concretize (Concrete e)     = e
+
+concretizeProgram :: PartialProgram -> S.Program
+concretizeProgram (PartialProgram exp _) = S.Program (concretize exp)
+
 satisfies :: Word64 -> Target -> Bool
 satisfies value (Target { targetBits, importantMask })
   = (value .&. importantMask) == (targetBits .&. importantMask)
@@ -180,3 +191,5 @@ enumerateTargets Target { targetBits, importantMask }
     build a idx
       | testBit importantMask idx = [a]
       | otherwise                 = [setBit a idx, clearBit a idx]
+
+

@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Syntax where
@@ -10,13 +11,16 @@ import Data.Bits
 type Var = Int
 type Value  = Word64
 
+data Program = Program Expression
+  deriving Show
+
 data Expression = Zero
                 | One
-                | Var Var
-                | If0 Expression Expression Expression
-                | Fold Expression Expression Expression
-                | Op1 Op1 Expression
-                | Op2 Op2 Expression Expression
+                | Var !Var
+                | If0 !Expression !Expression !Expression
+                | Fold !Expression !Expression !Expression
+                | Op1 !Op1 !Expression
+                | Op2 !Op2 !Expression !Expression
    deriving Show
 
 data Op1 = Not | Shl1 | Shr1 | Shr4 | Shr16
@@ -26,14 +30,14 @@ data Op2 = And | Or | Xor | Plus
 
 data Constraints
   = Constraints
-  { allowedOp1s      :: [Op1]
-  , allowedOp2s      :: [Op2]
-  , op1sLeftToUse    :: [Op1]
-  , op2sLeftToUse    :: [Op2]
-  , sizeAvailable    :: Int
-  , unforcedElements :: Int
-  , foldAvailable    :: Bool
-  , tfoldAvailable   :: Bool
+  { allowedOp1s      :: ![Op1]
+  , allowedOp2s      :: ![Op2]
+  , op1sLeftToUse    :: ![Op1]
+  , op2sLeftToUse    :: ![Op2]
+  , sizeAvailable    :: !Int
+  , unforcedElements :: !Int
+  , foldAvailable    :: !Bool
+  , tfoldAvailable   :: !Bool
   }
   deriving Show
 
