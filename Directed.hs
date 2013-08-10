@@ -48,6 +48,18 @@ satisfies :: Word64 -> Target -> Bool
 satisfies value (Target { targetBits, importantMask })
   = (value .&. importantMask) == (targetBits .&. importantMask)
 
+initProgram :: Int -> [Op1] -> [Op2] -> Bool -> Bool -> PartialProgram
+initProgram size op1s op2s foldAvailable tfoldAvailable
+  = PartialProgram Unforced Constraints { allowedOp1s       = op1s
+                                        , allowedOp2s       = op2s
+                                        , op1sLeftToUse     = op1s
+                                        , op2sLeftToUse     = op2s
+                                        , sizeAvailable     = size - 1
+                                        , unforcedElements  = 1
+                                        , foldAvailable     = foldAvailable
+                                        , tfoldAvailable    = tfoldAvailable
+                                        }
+
 search :: PartialProgram -> Input -> Output -> [PartialProgram]
 search (PartialProgram exp constraints) input output
   = map (uncurry (flip PartialProgram)) (searchExpression exp [input] (Target output (complement 0)) constraints)
