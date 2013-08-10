@@ -201,7 +201,7 @@ enumerateTargets Target { targetBits, importantMask }
                 , targetBits
                 ]
   where
-    maxTargetSplits = 10 {- really not sure what's better here!? -}
+    maxTargetSplits = 5 {- really not sure what's better here!? -}
 
     build :: Word64 -> Int -> [Word64]
     build a idx
