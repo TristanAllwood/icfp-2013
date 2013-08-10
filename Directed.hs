@@ -6,10 +6,12 @@ import Data.Bits
 import Data.Int
 import Data.Maybe
 import Data.Word
-import Syntax (Var, Op1(..), Op2(..), Value)
+import Syntax (Var, Op1(..), Op2(..), Value, enumerateConcrete,
+               constraintsSatisfiable, Constraints(..), enumerateOp1,
+               enumerateOp2)
 import qualified Syntax as S
 
-data PartialProgram = Program PartialExpression SizeLeft
+data PartialProgram = Program PartialExpression Constraints
   deriving Show
 
 data PartialExpression = Unforced
@@ -31,64 +33,81 @@ data Target
   , importantMask :: Word64
   }
 
-c_PLUS_SPLIT_POINT :: Int
-c_PLUS_SPLIT_POINT = 10
-
 satisfies :: Word64 -> Target -> Bool
 satisfies value (Target { targetBits, importantMask })
   = (value .&. importantMask) == (targetBits .&. importantMask)
 
-data Constraints
-  = Constraints
-  { allowedOp1s :: [Op1]
-  , allowedOp2s :: [Op2]
-  , size :: Int8
-  , foldAvailable :: Bool
-  , tfoldAvailable :: Bool
-  }
-{- TODO: push this around searchExpression instead of just sizeLeft.
- -       take into accounts op1s and op2s that need to be used within
- -       size limit remaining.
- -       capture the size limit remaining in here.
- -}
 
-search :: PartialProgram -> Input -> Output -> Constraints -> [PartialProgram]
+
+search :: PartialProgram -> Input -> Output -> [PartialProgram]
 search = error "TODO"
 
 searchExpression :: PartialExpression -> [Value] -> Target
-                 -> Constraints -> SizeLeft -> [(SizeLeft, PartialExpression)]
-searchExpression Unforced vals target constraints sizeleft                  = [] {- TODO -}
+                 -> Constraints -> [(Constraints, PartialExpression)]
 
-searchExpression (If0 c ift iff) vals target constraints sizeleft           = do
+searchExpression Unforced vals target constraints @ Constraints { sizeAvailable, unforcedElements } = do
+  (constraints', e) <- refine
+  searchExpression e vals target constraints
+  where
+    refine = filter (constraintsSatisfiable . fst) (primitives ++ ifs ++ folds ++ op1s ++ op2s)
+
+    primitives = [ (constraints', Concrete x)
+                 | (constraints',x) <- enumerateConcrete vals 1 constraints { sizeAvailable = sizeAvailable + 1, unforcedElements = unforcedElements - 1 }
+                 , let v = S.evalExpression x vals
+                 , v `satisfies` target
+                 ]
+
+    ifs =        [ (constraints', If0 e Unforced Unforced)
+                 | sizeAvailable + 1 >= 4
+                 , s0 <- [1 .. sizeAvailable + 1 - 3]
+                 , (constraints', e) <- enumerateConcrete vals s0 constraints { sizeAvailable = sizeAvailable + 1 - 3, unforcedElements = unforcedElements - 1 + 2 }
+                 ]
+
+    folds =      [
+                 ]
+
+    op1s =       [ (constraints', Op1 op Unforced)
+                 | sizeAvailable + 1 >= 2
+                 , (constraints', op) <- enumerateOp1 constraints { sizeAvailable = sizeAvailable + 1 - 2, unforcedElements = unforcedElements - 1 + 1 }
+                 ]
+
+    op2s =       [ (constraints'', Op2 op exp Unforced)
+                 | sizeAvailable + 1 >= 3
+                 , (constraints', op) <- enumerateOp2 constraints { sizeAvailable = sizeAvailable + 1 - 3, unforcedElements = unforcedElements - 1 + 1 }
+                 , s0 <- [1 .. S.sizeAvailable constraints' ]
+                 , (constraints'', exp) <- enumerateConcrete vals s0 constraints'
+                 ]
+
+searchExpression (If0 c ift iff) vals target constraints = do
   let lval = S.evalExpression c vals
   if lval == 0
   then do
-      (sizeleft', ift') <- searchExpression ift vals target constraints sizeleft
-      let rv = castConcrete2 ift' iff (If0 c) ((Concrete .) . S.If0 c)
-      return (sizeleft', rv)
+    (constraints', ift') <- searchExpression ift vals target constraints
+    let rv = castConcrete2 ift' iff (If0 c) ((Concrete .) . S.If0 c)
+    return (constraints', rv)
   else do
-    (sizeleft', iff') <- searchExpression iff vals target constraints sizeleft
+    (constraints', iff') <- searchExpression iff vals target constraints
     let rv = castConcrete2 ift iff' (If0 c) ((Concrete .) . S.If0 c)
-    return (sizeleft', rv)
+    return (constraints', rv)
 
-searchExpression (Fold over init function) vals target constraints sizeleft = [] {- TODO -}
+searchExpression (Fold over init function) vals target constraints = [] {- TODO -}
 
-searchExpression (Op1 op exp) vals target constraints sizeleft = do
+searchExpression (Op1 op exp) vals target constraints = do
   target' <- maybeToList (invertOp1 target op)
-  (sizeleft', exp') <- searchExpression exp vals target' constraints sizeleft
+  (constraints', exp') <- searchExpression exp vals target' constraints
   let rv = castConcrete1 exp' (Op1 op) (Concrete . S.Op1 op)
-  return (sizeleft', rv)
+  return (constraints', rv)
 
-searchExpression (Op2 op lhs rhs) vals target constraints sizeleft = do
+searchExpression (Op2 op lhs rhs) vals target constraints = do
   let lval = S.evalExpression lhs vals
   target' <- invertOp2 target lval op
-  (sizeleft', rhs') <- searchExpression rhs vals target' constraints sizeleft
+  (constraints', rhs') <- searchExpression rhs vals target' constraints
   let rv = castConcrete1 rhs' (Op2 op lhs) (Concrete . S.Op2 op lhs)
-  return (sizeleft', rv)
+  return (constraints', rv)
 
-searchExpression c@(Concrete exp) vals target constraints sizeleft = do
+searchExpression c@(Concrete exp) vals target constraints = do
   guard $ (S.evalExpression exp vals) `satisfies` target
-  return (sizeleft, c)
+  return (constraints, c)
 
 castConcrete1 :: PartialExpression -> (PartialExpression -> a)
               -> (S.Expression -> a) -> a
