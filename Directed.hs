@@ -10,6 +10,7 @@ import Syntax (Var, Op1(..), Op2(..), Value, enumerateConcrete,
                constraintsSatisfiable, Constraints(..), enumerateOp1,
                enumerateOp2)
 import qualified Syntax as S
+import Debug.Trace
 
 data PartialProgram = PartialProgram PartialExpression Constraints
   deriving Show
@@ -194,12 +195,12 @@ invertOp2 t@Target { targetBits, importantMask } lhs op
 enumerateTargets :: Target -> [Word64]
 enumerateTargets Target { targetBits, importantMask }
   | popCount importantMask < maxTargetSplits = let base = targetBits .&. importantMask
-                                                in foldM build base [0..63]
+                                                in trace "targetSplit" (foldM build base [0..63])
   | otherwise = [ targetBits .&. importantMask
                 , (targetBits .&. importantMask) .|. (complement 0 .&. complement importantMask)
                 ]
   where
-    maxTargetSplits = 5
+    maxTargetSplits = 4
 
     build :: Word64 -> Int -> [Word64]
     build a idx
