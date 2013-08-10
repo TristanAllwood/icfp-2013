@@ -30,12 +30,10 @@ main = do
   when (input == "yes") $ do
     putStrLn "Starting - good luck!"
 
-{-
     runLoop net (id thisProblem)
                 (size thisProblem)
                 (operators thisProblem)
 
--}
 
 data GivenProblem
   = GivenProblem
