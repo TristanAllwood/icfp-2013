@@ -194,13 +194,13 @@ invertOp2 t@Target { targetBits, importantMask } lhs op
 
 enumerateTargets :: Target -> [Word64]
 enumerateTargets Target { targetBits, importantMask }
-  | popCount importantMask < maxTargetSplits = let base = targetBits .&. importantMask
-                                                in (foldM build base [0..63])
+  | (64 - popCount importantMask) < maxTargetSplits = let base = targetBits .&. importantMask
+                                                       in (foldM build base [0..63])
   | otherwise = [ targetBits .&. importantMask
                 , (targetBits .&. importantMask) .|. (complement 0 .&. complement importantMask)
                 ]
   where
-    maxTargetSplits = 65 {- really not sure what's better here!? -}
+    maxTargetSplits = 3 {- really not sure what's better here!? -}
 
     build :: Word64 -> Int -> [Word64]
     build a idx

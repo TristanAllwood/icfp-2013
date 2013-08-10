@@ -16,9 +16,9 @@ main :: IO ()
 main = do
   net <- newNet
 
-  [problemId] <- getArgs
+  [problemId, problemsfile] <- getArgs
 
-  Just problems <- decode <$> readFile "myproblems.json"
+  Just problems <- decode <$> readFile problemsfile
 
   let [thisProblem] = filter ((== problemId) . id) problems
 
