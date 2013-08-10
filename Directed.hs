@@ -48,12 +48,13 @@ satisfies :: Word64 -> Target -> Bool
 satisfies value (Target { targetBits, importantMask })
   = (value .&. importantMask) == (targetBits .&. importantMask)
 
-initProgram :: Int -> [Op1] -> [Op2] -> Bool -> Bool -> PartialProgram
-initProgram size op1s op2s foldAvailable tfoldAvailable
+initProgram :: Int -> [Op1] -> [Op2] -> Bool -> Bool -> Bool -> PartialProgram
+initProgram size op1s op2s if0Allowed foldAvailable tfoldAvailable
   = PartialProgram Unforced Constraints { allowedOp1s       = op1s
                                         , allowedOp2s       = op2s
                                         , op1sLeftToUse     = op1s
                                         , op2sLeftToUse     = op2s
+                                        , if0Allowed        = if0Allowed
                                         , sizeAvailable     = size - 1
                                         , unforcedElements  = 1
                                         , foldAvailable     = foldAvailable
@@ -81,7 +82,8 @@ searchExpression Unforced vals target constraints @ Constraints { sizeAvailable,
                  ]
 
     ifs =        [ (constraints', If0 e Unforced Unforced)
-                 | sizeAvailable + 1 >= 4
+                 | if0Allowed constraints
+                 , sizeAvailable + 1 >= 4
                  , s0 <- [1 .. sizeAvailable + 1 - 3]
                  , (constraints', e) <- enumerateConcrete vals s0 constraints { sizeAvailable = sizeAvailable + 1 - 3, unforcedElements = unforcedElements - 1 + 2 }
                  ]

@@ -43,6 +43,7 @@ runLoop net problemId size operators = do
 
         let programs = [(D.initProgram size (op1s operators)
                                             (op2s operators)
+                                            (if0 operators)
                                             (fold operators)
                                             (tfold operators))]
         let pairs = inputs `zip` outputs

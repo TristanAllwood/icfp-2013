@@ -37,6 +37,7 @@ data Constraints
   , op2sLeftToUse    :: ![Op2]
   , sizeAvailable    :: !Int
   , unforcedElements :: !Int
+  , if0Allowed       :: !Bool
   , foldAvailable    :: !Bool
   , tfoldAvailable   :: !Bool
   }
@@ -98,7 +99,8 @@ enumerateConcrete vals sizeTarget constraints @ Constraints { sizeAvailable }
                 ]
 
     ifs = [ (constraints', If0 e0 e1 e2)
-          | sizeTarget >= 4
+          | if0Allowed constraints
+          , sizeTarget >= 4
           , (s0, s1, s2)       <- genSizes3 (sizeTarget - 1)
           , (c0 , e0)          <- enumerateConcrete vals s0 constraints { sizeAvailable = sizeAvailable - 1 }
           , (c1 , e1)          <- enumerateConcrete vals s1 c0

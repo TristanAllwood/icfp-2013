@@ -62,6 +62,7 @@ data Operators
   = Operators
   { op1s :: [S.Op1]
   , op2s :: [S.Op2]
+  , if0 :: Bool
   , fold :: Bool
   , tfold :: Bool
   }
@@ -71,9 +72,10 @@ instance FromJSON Operators where
     | Success strs <- fromJSON a
     = let fold = "fold" `elem` strs
           tfold = "tfold" `elem` strs
+          if0 = "if0" `elem` strs
           op1s = mapMaybe (flip lookup op1_ps) strs
           op2s = mapMaybe (flip lookup op2_ps) strs
-       in return Operators { op1s, op2s, fold, tfold }
+       in return Operators { op1s, op2s, if0, fold, tfold }
     | otherwise = mzero
 
     where
