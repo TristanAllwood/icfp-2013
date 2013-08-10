@@ -74,7 +74,7 @@ searchExpression Unforced vals target constraints @ Constraints { sizeAvailable,
   (constraints', e) <- refine
   searchExpression e vals target constraints'
   where
-    refine = filter (constraintsSatisfiable . fst) (primitives ++ ifs ++ folds ++ op1s ++ op2s)
+    refine = filter (constraintsSatisfiable . fst) (primitives ++ ifs ++ folds ++ op2s ++ op1s)
 
     primitives = [ (constraints', Concrete x)
                  | (constraints',x) <- enumerateConcrete vals 1 constraints { sizeAvailable = sizeAvailable + 1, unforcedElements = unforcedElements - 1 }
@@ -87,6 +87,7 @@ searchExpression Unforced vals target constraints @ Constraints { sizeAvailable,
                  , sizeAvailable + 1 >= 4
                  , s0 <- [1 .. sizeAvailable + 1 - 3]
                  , (constraints', e) <- enumerateConcrete vals s0 constraints { sizeAvailable = sizeAvailable + 1 - 3, unforcedElements = unforcedElements - 1 + 2 }
+                 , not (S.isConstant e)
                  ]
 
     folds =      [

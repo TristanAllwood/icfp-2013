@@ -92,7 +92,7 @@ enumerateConcrete :: [Value] -> Int -> Constraints -> [(Constraints, Expression)
 enumerateConcrete vals sizeTarget constraints @ Constraints { sizeAvailable }
   = filter (constraintsSatisfiable . fst) refine
   where
-    refine = terminals ++ ifs ++ folds ++ op1s ++ op2s
+    refine = terminals ++ ifs ++ folds ++ op2s ++ op1s
     terminals = [ (constraints { sizeAvailable = sizeAvailable - 1 }, t)
                 | sizeTarget == 1
                 , t <- (Zero:One:(map Var [0..length vals - 1]))
@@ -103,6 +103,7 @@ enumerateConcrete vals sizeTarget constraints @ Constraints { sizeAvailable }
           , sizeTarget >= 4
           , (s0, s1, s2)       <- genSizes3 (sizeTarget - 1)
           , (c0 , e0)          <- enumerateConcrete vals s0 constraints { sizeAvailable = sizeAvailable - 1 }
+          , not (isConstant e0)
           , (c1 , e1)          <- enumerateConcrete vals s1 c0
           , (constraints', e2) <- enumerateConcrete vals s2 c1
           ]
@@ -145,3 +146,12 @@ genSizes3 supply = [ (v0, v1, v2) | v0 <- [1..(supply - 2)],
 genSizes2Triangle :: Int -> [(Int, Int)]
 genSizes2Triangle supply = [ (v0, v1) | v0 <- [1..(supply - 1)],
                                         v1 <- [1..v0] ]
+
+isConstant :: Expression -> Bool
+isConstant Zero         = True
+isConstant One          = True
+isConstant (Var _)      = False
+isConstant (If0 _ l r)  = isConstant l && isConstant r
+isConstant (Fold _ _ _) = error "TODO isConstant fold?"
+isConstant (Op1 _ e)    = isConstant e
+isConstant (Op2 _ l r)  = isConstant l && isConstant r
