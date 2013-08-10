@@ -56,7 +56,7 @@ initProgram size op1s op2s if0Allowed foldAvailable tfoldAvailable
                                         , op1sLeftToUse     = op1s
                                         , op2sLeftToUse     = op2s
                                         , if0Allowed        = if0Allowed
-                                        , sizeAvailable     = size - 2
+                                        , sizeAvailable     = size - 1
                                         , unforcedElements  = 1
                                         , foldAvailable     = foldAvailable
                                         , tfoldAvailable    = tfoldAvailable
@@ -198,9 +198,10 @@ enumerateTargets Target { targetBits, importantMask }
                                                        in (foldM build base [0..63])
   | otherwise = [ targetBits .&. importantMask
                 , (targetBits .&. importantMask) .|. (complement 0 .&. complement importantMask)
+                , targetBits
                 ]
   where
-    maxTargetSplits = 3 {- really not sure what's better here!? -}
+    maxTargetSplits = 20 {- really not sure what's better here!? -}
 
     build :: Word64 -> Int -> [Word64]
     build a idx
