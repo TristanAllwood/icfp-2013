@@ -66,7 +66,9 @@ data Operators
   , if0 :: Bool
   , fold :: Bool
   , tfold :: Bool
+  , bonus :: Bool
   }
+  deriving Show
 
 instance FromJSON Operators where
   parseJSON a
@@ -74,9 +76,10 @@ instance FromJSON Operators where
     = let fold = "fold" `elem` strs
           tfold = "tfold" `elem` strs
           if0 = "if0" `elem` strs
+          bonus = "bonus" `elem` strs
           op1s = mapMaybe (flip lookup op1_ps) strs
           op2s = mapMaybe (flip lookup op2_ps) strs
-       in return Operators { op1s, op2s, if0, fold, tfold }
+       in return Operators { op1s, op2s, if0, fold, tfold, bonus}
     | otherwise = mzero
 
     where
