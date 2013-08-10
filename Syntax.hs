@@ -68,17 +68,32 @@ enumerateConcrete vals sizeTarget constraints @ Constraints { sizeAvailable }
     refine = terminals ++ ifs ++ folds ++ op1s ++ op2s
     terminals = [ (constraints { sizeAvailable = sizeAvailable - 1 }, t)
                 | sizeTarget == 1
-                , sizeAvailable >= 1
-                , t <- (Zero:One:(map Var [1..length Value]))
+                , t <- (Zero:One:(map Var [1..length vals]))
                 ]
 
-    ifs = []
+    ifs = [ (constraints', If0 e0 e1 e2)
+          | sizeTarget >= 4
+          , (s0, s1, s2)       <- genSizes3 (sizeTarget - 1)
+          , (c0 , e0)          <- enumerateConcrete vals s0 constraints { sizeAvailable = sizeAvailable - 1 }
+          , (c1 , e1)          <- enumerateConcrete vals s1 c0
+          , (constraints', e2) <- enumerateConcrete vals s2 c1
+          ]
 
-    folds = [] {- TODO: folds -}
+    folds = [ ] {- TODO folds -}
 
-    op1s = []
+    op1s = [ (constraints', Op1 op e0)
+           | sizeTarget >= 2
+           , (c0, op) <- enumerateOp1  constraints { sizeAvailable = sizeAvailable - 1 }
+           , (constraints', e0) <- enumerateConcrete vals (sizeTarget - 1) c0
+           ]
 
-    op2s = []
+    op2s = [ (constraints', Op2 op e0 e1)
+           | sizeTarget >= 3
+           , (c0, op) <- enumerateOp2 constraints { sizeAvailable = sizeAvailable - 1 }
+           , (s0, s1) <- genSizes2Triangle (sizeTarget - 1)
+           , (c1, e0)           <- enumerateConcrete vals s0 c0
+           , (constraints', e1) <- enumerateConcrete vals s1 c1
+           ]
 
 constraintsSatisfiable :: Constraints -> Bool
 constraintsSatisfiable Constraints { op1sLeftToUse, op2sLeftToUse, sizeAvailable, unforcedElements } = (length op1sLeftToUse + length op2sLeftToUse) <= (sizeAvailable + unforcedElements)
@@ -92,3 +107,12 @@ enumerateOp2 :: Constraints -> [(Constraints, Op2)]
 enumerateOp2 constraints@Constraints { allowedOp2s, op2sLeftToUse }
   = filter (constraintsSatisfiable . fst)
            [ (constraints { op2sLeftToUse = op2sLeftToUse \\ [op] }, op) | op <- allowedOp2s ]
+
+genSizes3 :: Int -> [(Int, Int, Int)]
+genSizes3 supply = [ (v0, v1, v2) | v0 <- [1..(supply - 2)],
+                                    v1 <- [1..(supply - v0)],
+                                    v2 <- [1..(supply - (v0 + v1))] ]
+
+genSizes2Triangle :: Int -> [(Int, Int)]
+genSizes2Triangle supply = [ (v0, v1) | v0 <- [1..(supply - 1)],
+                                        v1 <- [1..v0] ]
