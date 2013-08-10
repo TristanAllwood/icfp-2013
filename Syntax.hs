@@ -3,10 +3,11 @@
 
 module Syntax where
 
-import Data.Word
+import Data.Bits
+import Data.Char
 import Data.Int
 import Data.List
-import Data.Bits
+import Data.Word
 
 type Var = Int
 type Value  = Word64
@@ -40,6 +41,27 @@ data Constraints
   , tfoldAvailable   :: !Bool
   }
   deriving Show
+
+formatProgram :: Program -> String
+formatProgram (Program e) = "(lambda (x0) " ++ formatExpression e ++ ")"
+
+formatExpression :: Expression -> String
+formatExpression Zero            = "0"
+formatExpression One             = "1"
+formatExpression (Var v)         = "x" ++ show v
+formatExpression (If0 c l r)
+  = "(if0 " ++ formatExpression c ++ " " ++ formatExpression l ++ " " ++
+                                            formatExpression r ++ ")"
+formatExpression (Fold e0 e1 e2)
+  = "(fold " ++ formatExpression e0 ++ " " ++ formatExpression e1 ++
+    "(lambda (x1 x2) " ++ formatExpression e2 ++ "))"
+
+formatExpression (Op1 op ex)
+  = "(" ++ (map toLower (show op)) ++ " " ++ formatExpression ex ++ ")"
+
+formatExpression (Op2 op e0 e1)
+  = "(" ++ (map toLower (show op)) ++ " " ++ formatExpression e0 ++ " "
+                                           ++ formatExpression e1 ++ ")"
 
 evalExpression :: Expression -> [Value] -> Word64
 evalExpression Zero _                  = 0

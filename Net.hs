@@ -101,6 +101,38 @@ instance FromJSON EvalResponse where
         v .:? "message"
   parseJSON _ = mzero
 
+data GuessRequest
+  = GuessRequest
+  { gr_id      :: String
+  , gr_program :: S.Program
+  }
+
+data GuessResponse
+  = GuessResponse
+  { gr_status :: GuessResponseStatus
+  , gr_values :: Maybe [Word64]
+  , gr_message :: Maybe String
+  }
+
+data GuessResponseStatus = Win | Mismatch | Error
+  deriving Show
+
+instance FromJSON GuessResponseStatus where
+  parseJSON (String txt)
+    | txt == "win"      = return Win
+    | txt == "mismatch" = return Mismatch
+    | txt == "error"    = return Net.Error
+  parseJSON _ = mzero
+
+instance FromJSON GuessResponse where
+  parseJSON (Object v)
+    = GuessResponse                             <$>
+        v .: "status"                           <*>
+        (fmap (map read) <$> (v .:? "values"))  <*>
+        v .:? "message"
+
+  parseJSON _ = mzero
+
 mkUrl :: Net -> String -> String
 mkUrl net page
   = "http://icfpc2013.cloudapp.net/" ++ page ++ "?auth=" ++ (key net) ++ "vpsH1H"
@@ -119,18 +151,18 @@ netRequest net json page = do
 
   let jsonValue = decode (pack body)
   case jsonValue of
-    Just tp -> return $ Right tp
-    Nothing -> return $ Left "???"
+    Just tp -> return tp
+    Nothing -> error "Json decode failed!?"
 
 
-trainingRequest :: Net -> TrainingRequest -> IO (Either String TrainingProblem)
+trainingRequest :: Net -> TrainingRequest -> IO TrainingProblem
 trainingRequest net req = do
   let json = object $ maybe [] (\s -> [ "size" .= s]) (tr_size req) ++
                       maybe [] (\s -> [ "operators" .= s ]) (tr_operators req)
 
   netRequest net json "train"
 
-evalRequest :: Net -> EvalRequest -> IO (Either String EvalResponse)
+evalRequest :: Net -> EvalRequest -> IO EvalResponse
 evalRequest net req = do
   let textified_arguments = map (printf "0x%016X" :: Word64 -> String) (er_arguments req)
   let json = object $ [ "id"        .= er_id req
@@ -139,3 +171,10 @@ evalRequest net req = do
 
   netRequest net json "eval"
 
+guessRequest :: Net -> GuessRequest -> IO GuessResponse
+guessRequest net req = do
+  let code_program = S.formatProgram (gr_program req)
+  let json = object $ [ "id"        .= gr_id req
+                      , "program"   .= code_program
+                      ]
+  netRequest net json "guess"

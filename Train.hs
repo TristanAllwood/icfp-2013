@@ -5,6 +5,7 @@ import Control.Applicative
 import Control.Monad
 import Data.Bits
 import Data.List
+import Data.Maybe
 import Data.Vector (toList)
 import Data.Word
 import System.Environment
@@ -12,6 +13,7 @@ import System.Random.MWC
 
 import Net
 import qualified Directed as D
+import Syntax (formatProgram)
 
 main :: IO ()
 main = do
@@ -22,12 +24,9 @@ main = do
   trainingResponse <- trainingRequest net (TrainingRequest { tr_size      = Just size
                                                            , tr_operators = Just None })
 
-  case trainingResponse of
-    Left  msg             -> error msg
-    Right trainingProblem -> runLoop net
-                                     (tp_id trainingProblem)
-                                     (tp_size trainingProblem)
-                                     (tp_operators trainingProblem)
+  runLoop net (tp_id trainingResponse)
+              (tp_size trainingResponse)
+              (tp_operators trainingResponse)
 
 runLoop :: Net -> String -> Int -> Operators -> IO ()
 runLoop net problemId size operators = do
@@ -38,22 +37,44 @@ runLoop net problemId size operators = do
 
     evalResponse <- evalRequest net EvalRequest { er_id = problemId, er_arguments = inputs }
 
-    case evalResponse of
-      Left msg -> error msg
-      Right output -> do
-        case (er_outputs output) of
-          Just outputs -> do
-            let programs = solve (inputs `zip` outputs) size operators
+    case (er_outputs evalResponse) of
+      Nothing -> error "No outputs :("
+      Just outputs -> do
 
-            forM_ programs print
+        let programs = [(D.initProgram size (op1s operators)
+                                            (op2s operators)
+                                            (fold operators)
+                                            (tfold operators))]
+        let pairs = inputs `zip` outputs
 
-          Nothing -> error "No outputs :("
+        let loop pairs programs = do
+              let programs' = solve pairs programs
+              case programs' of
+                [] -> error "Sorry, I can't help you :("
+                (p:ps) -> do
+                  let c_program = D.concretizeProgram p
+                  putStrLn $ "attempting: " ++ (formatProgram c_program)
 
-solve :: [(Word64, Word64)] -> Int -> Operators -> [D.PartialProgram]
-solve pairs size operators
-  = foldM (\p (i,o) -> D.search p i o)
-          (D.initProgram size (op1s operators)
-                                (op2s operators)
-                                (fold operators)
-                                (tfold operators))
-           pairs
+                  guessResponse <- guessRequest net GuessRequest { gr_id = problemId,
+                                                                   gr_program = c_program }
+
+                  case (gr_status guessResponse) of
+                    Win      -> do
+                      putStrLn "Woohoo!"
+                      {- Woot. -}
+
+                    Mismatch -> do
+                      let Just [input, output, urk] = gr_values guessResponse
+                      putStrLn $ "Mismatch " ++ show [input, output, urk]
+                      loop [(input,output)] ps
+
+                    Error    -> do
+                      putStrLn (fromJust $ gr_message guessResponse)
+                      {- TODO: keep trying? -}
+
+        loop pairs programs
+
+
+solve :: [(Word64, Word64)] -> [D.PartialProgram] -> [D.PartialProgram]
+solve pairs programs
+  = concatMap (\program -> foldM (\p (i,o) -> D.search p i o) program pairs) programs
