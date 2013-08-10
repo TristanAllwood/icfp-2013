@@ -124,7 +124,8 @@ enumerateConcrete vals sizeTarget constraints @ Constraints { sizeAvailable }
            ]
 
 constraintsSatisfiable :: Constraints -> Bool
-constraintsSatisfiable Constraints { op1sLeftToUse, op2sLeftToUse, sizeAvailable, unforcedElements } = (length op1sLeftToUse + length op2sLeftToUse) <= (sizeAvailable + unforcedElements)
+--constraintsSatisfiable Constraints { op1sLeftToUse, op2sLeftToUse, sizeAvailable, unforcedElements } = (length op1sLeftToUse + length op2sLeftToUse) <= (sizeAvailable + unforcedElements)
+constraintsSatisfiable = const True
 
 enumerateOp1 :: Constraints -> [(Constraints, Op1)]
 enumerateOp1 constraints@Constraints { allowedOp1s, op1sLeftToUse }

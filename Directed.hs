@@ -56,7 +56,7 @@ initProgram size op1s op2s if0Allowed foldAvailable tfoldAvailable
                                         , op1sLeftToUse     = op1s
                                         , op2sLeftToUse     = op2s
                                         , if0Allowed        = if0Allowed
-                                        , sizeAvailable     = size - 1
+                                        , sizeAvailable     = size - 2
                                         , unforcedElements  = 1
                                         , foldAvailable     = foldAvailable
                                         , tfoldAvailable    = tfoldAvailable
