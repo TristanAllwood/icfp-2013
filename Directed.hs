@@ -20,7 +20,7 @@ data PartialExpression = Unforced
                        | Fold PartialExpression PartialExpression PartialExpression
                        | Op1 Op1 PartialExpression
                        | Op2 Op2 S.Expression PartialExpression
-                       | Concrete S.Expression
+                       | Concrete !S.Expression
    deriving Show
 
 type SizeLeft = Int8
@@ -30,8 +30,8 @@ type Output = Word64
 
 data Target
   = Target
-  { targetBits    :: Word64
-  , importantMask :: Word64
+  { targetBits    :: !Word64
+  , importantMask :: !Word64
   }
 
 concretize :: PartialExpression -> S.Expression
@@ -200,7 +200,7 @@ enumerateTargets Target { targetBits, importantMask }
                 , (targetBits .&. importantMask) .|. (complement 0 .&. complement importantMask)
                 ]
   where
-    maxTargetSplits = 4
+    maxTargetSplits = 65 {- really not sure what's better here!? -}
 
     build :: Word64 -> Int -> [Word64]
     build a idx

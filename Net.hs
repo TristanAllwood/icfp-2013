@@ -4,6 +4,7 @@
 module Net where
 
 import Control.Applicative
+import Control.Concurrent
 import Data.Aeson
 import Text.Printf
 import Data.ByteString.Lazy.Char8 (unpack, pack)
@@ -139,6 +140,7 @@ mkUrl :: Net -> String -> String
 mkUrl net page
   = "http://icfpc2013.cloudapp.net/" ++ page ++ "?auth=" ++ (key net) ++ "vpsH1H"
 
+netRequest :: FromJSON a => Net -> Value -> String -> IO a
 netRequest net json page = do
   let url = mkUrl net page
   hPutStrLn (logFile net) (page ++ ": " ++ url ++ " : " ++ (unpack $ encode json))
@@ -147,15 +149,25 @@ netRequest net json page = do
   print resp
   hPrint (logFile net) resp
 
-  body <- getResponseBody resp
-  hPutStrLn (logFile net) body
-  hFlush (logFile net)
+  respCode <- getResponseCode resp
 
-  let jsonValue = decode (pack body)
-  case jsonValue of
-    Just tp -> return tp
-    Nothing -> error "Json decode failed!?"
+  case respCode of
+    (4,2,9) -> do
+      putStrLn "429 - waiting."
+      threadDelay 20000000
+      putStrLn "woken up."
+      netRequest net json page
 
+    (2,0,0) -> do
+      body <- getResponseBody resp
+      hPutStrLn (logFile net) body
+      hFlush (logFile net)
+
+      let jsonValue = decode (pack body)
+      case jsonValue of
+        Just tp -> return tp
+        Nothing -> error "Json decode failed!?"
+    _       -> error "Response failed unexpectedly."
 
 trainingRequest :: Net -> TrainingRequest -> IO TrainingProblem
 trainingRequest net req = do
