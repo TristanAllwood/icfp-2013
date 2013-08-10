@@ -11,7 +11,7 @@ import Syntax (Var, Op1(..), Op2(..), Value, enumerateConcrete,
                enumerateOp2)
 import qualified Syntax as S
 
-data PartialProgram = Program PartialExpression Constraints
+data PartialProgram = PartialProgram PartialExpression Constraints
   deriving Show
 
 data PartialExpression = Unforced
@@ -37,17 +37,17 @@ satisfies :: Word64 -> Target -> Bool
 satisfies value (Target { targetBits, importantMask })
   = (value .&. importantMask) == (targetBits .&. importantMask)
 
-
-
 search :: PartialProgram -> Input -> Output -> [PartialProgram]
-search = error "TODO"
+search (PartialProgram exp constraints) input output
+  = map (uncurry (flip PartialProgram)) (searchExpression exp [input] (Target output (complement 0)) constraints)
+
 
 searchExpression :: PartialExpression -> [Value] -> Target
                  -> Constraints -> [(Constraints, PartialExpression)]
 
 searchExpression Unforced vals target constraints @ Constraints { sizeAvailable, unforcedElements } = do
   (constraints', e) <- refine
-  searchExpression e vals target constraints
+  searchExpression e vals target constraints'
   where
     refine = filter (constraintsSatisfiable . fst) (primitives ++ ifs ++ folds ++ op1s ++ op2s)
 
@@ -73,7 +73,7 @@ searchExpression Unforced vals target constraints @ Constraints { sizeAvailable,
 
     op2s =       [ (constraints'', Op2 op exp Unforced)
                  | sizeAvailable + 1 >= 3
-                 , (constraints', op) <- enumerateOp2 constraints { sizeAvailable = sizeAvailable + 1 - 3, unforcedElements = unforcedElements - 1 + 1 }
+                 , (constraints', op) <- enumerateOp2 constraints { sizeAvailable = sizeAvailable + 1 - 2, unforcedElements = unforcedElements - 1 + 1 }
                  , s0 <- [1 .. S.sizeAvailable constraints' ]
                  , (constraints'', exp) <- enumerateConcrete vals s0 constraints'
                  ]
@@ -165,11 +165,17 @@ invertOp2 t@Target { targetBits, importantMask } lhs op
                     let ri = 0xFFFFFFFFFFFFFFFF
                     return Target { targetBits = rb, importantMask = ri }
 
+
 enumerateTargets :: Target -> [Word64]
 enumerateTargets Target { targetBits, importantMask }
-  = let base = targetBits .&. importantMask
-     in foldM build base [0..64]
+  | popCount importantMask < maxTargetSplits = let base = targetBits .&. importantMask
+                                                in foldM build base [0..63]
+  | otherwise = [ targetBits .&. importantMask
+                , (targetBits .&. importantMask) .|. (complement 0 .&. complement importantMask)
+                ]
   where
+    maxTargetSplits = 5
+
     build :: Word64 -> Int -> [Word64]
     build a idx
       | testBit importantMask idx = [a]

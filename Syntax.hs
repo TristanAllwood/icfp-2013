@@ -68,7 +68,7 @@ enumerateConcrete vals sizeTarget constraints @ Constraints { sizeAvailable }
     refine = terminals ++ ifs ++ folds ++ op1s ++ op2s
     terminals = [ (constraints { sizeAvailable = sizeAvailable - 1 }, t)
                 | sizeTarget == 1
-                , t <- (Zero:One:(map Var [1..length vals]))
+                , t <- (Zero:One:(map Var [0..length vals - 1]))
                 ]
 
     ifs = [ (constraints', If0 e0 e1 e2)
