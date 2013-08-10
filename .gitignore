@@ -3,3 +3,6 @@ key
 *.swo
 *.json
 log
+*.o
+*.hi
+Train
