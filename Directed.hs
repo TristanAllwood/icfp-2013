@@ -64,7 +64,7 @@ initProgram size op1s op2s if0Allowed foldAvailable tfoldAvailable
 
 search :: PartialProgram -> Input -> Output -> [PartialProgram]
 search (PartialProgram exp constraints) input output
-  = map (uncurry (flip PartialProgram)) (searchExpression exp [input] (Target output (complement 0)) constraints)
+  = concat [ map (uncurry (flip PartialProgram)) (searchExpression exp [input] (Target output (complement 0)) constraints { sizeAvailable = size }) | size <- [1..sizeAvailable constraints]]
 
 
 searchExpression :: PartialExpression -> [Value] -> Target
