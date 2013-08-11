@@ -12,7 +12,7 @@ main = do
   [read -> size] <- getArgs
 
   trainingResponse <- trainingRequest net (TrainingRequest { tr_size      = Just size
-                                                           , tr_operators = Just Fold })
+                                                           , tr_operators = Just TFold })
 
   runLoop net (tp_id trainingResponse)
               (tp_size trainingResponse)

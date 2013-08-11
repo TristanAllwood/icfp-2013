@@ -22,8 +22,10 @@ main = do
 
   let [thisProblem] = filter ((== problemId) . id) problems
 
+{-
   when (Net.tfold $ (operators thisProblem)) $ do
     error "Don't be stupid"
+-}
 
   print thisProblem
 

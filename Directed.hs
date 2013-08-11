@@ -56,7 +56,7 @@ initProgram size op1s op2s if0Allowed foldAvailable tfoldAvailable
                                         , op1sLeftToUse     = op1s
                                         , op2sLeftToUse     = op2s
                                         , if0Allowed        = if0Allowed
-                                        , sizeAvailable     = size - 1
+                                        , sizeAvailable     = size
                                         , unforcedElements  = 1
                                         , foldAvailable     = foldAvailable
                                         , tfoldAvailable    = tfoldAvailable
@@ -64,13 +64,13 @@ initProgram size op1s op2s if0Allowed foldAvailable tfoldAvailable
 
 search :: PartialProgram -> Input -> Output -> [PartialProgram]
 search (PartialProgram exp constraints) input output
-  = concat [ map (uncurry (flip PartialProgram)) (searchExpression exp [input] (Target output (complement 0)) constraints { sizeAvailable = size }) | size <- [1..sizeAvailable constraints]]
+  = concat [ map (uncurry (flip PartialProgram)) (searchExpression exp [input] (Target output (complement 0)) constraints { sizeAvailable = size }) | size <- [1..sizeAvailable constraints + 5]]
 
 
 searchExpression :: PartialExpression -> [Value] -> Target
                  -> Constraints -> [(Constraints, PartialExpression)]
 
-searchExpression Unforced vals target constraints @ Constraints { sizeAvailable, unforcedElements, foldAvailable } = do
+searchExpression Unforced vals target constraints @ Constraints { sizeAvailable, unforcedElements, foldAvailable, tfoldAvailable } = do
   (constraints', e) <- refine
   searchExpression e vals target constraints'
   where
@@ -92,10 +92,10 @@ searchExpression Unforced vals target constraints @ Constraints { sizeAvailable,
 
     {- TODO - c/p from syntax -}
     folds =      [ (constraints', Concrete exp)
-                 | foldAvailable
+                 | foldAvailable || tfoldAvailable
                  , sizeAvailable + 1 >= 4
                  , (s0, s1, s2) <- S.genSizes3 sizeAvailable
-                 , (c0, e0) <- enumerateConcrete vals s0 constraints { sizeAvailable, foldAvailable = False }
+                 , (c0, e0) <- enumerateConcrete vals s0 constraints { sizeAvailable, foldAvailable = False, tfoldAvailable = False }
                  , (c1, e1) <- enumerateConcrete vals s1 c0
                  , (constraints', e2) <- enumerateConcrete (vals ++ [0,0]) s2 c1
                  , let exp = S.Fold e0 e1 e2

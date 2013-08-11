@@ -101,7 +101,7 @@ applyOp2 Xor  = xor
 applyOp2 Plus = (+)
 
 enumerateConcrete :: [Value] -> Int -> Constraints -> [(Constraints, Expression)]
-enumerateConcrete vals sizeTarget constraints @ Constraints { sizeAvailable, foldAvailable }
+enumerateConcrete vals sizeTarget constraints @ Constraints { sizeAvailable, tfoldAvailable, foldAvailable }
   = filter (constraintsSatisfiable . fst) refine
   where
     refine = terminals ++ ifs ++ folds ++ op2s ++ op1s
@@ -121,10 +121,10 @@ enumerateConcrete vals sizeTarget constraints @ Constraints { sizeAvailable, fol
           ]
 
     folds = [ (constraints', Fold e0 e1 e2)
-            | foldAvailable
+            | foldAvailable || tfoldAvailable
             , sizeTarget >= 4
             , (s0, s1, s2) <- genSizes3 (sizeTarget - 1)
-            , (c0, e0) <- enumerateConcrete vals s0 constraints { sizeAvailable = sizeAvailable - 1, foldAvailable = False }
+            , (c0, e0) <- enumerateConcrete vals s0 constraints { sizeAvailable = sizeAvailable - 1, foldAvailable = False, tfoldAvailable = False }
             , (c1, e1) <- enumerateConcrete vals s1 c0
             , (constraints', e2) <- enumerateConcrete (vals ++ [0,0]) s2 c1
             ]
@@ -144,8 +144,8 @@ enumerateConcrete vals sizeTarget constraints @ Constraints { sizeAvailable, fol
            ]
 
 constraintsSatisfiable :: Constraints -> Bool
-constraintsSatisfiable Constraints { op1sLeftToUse, op2sLeftToUse, sizeAvailable, unforcedElements } = (length op1sLeftToUse + length op2sLeftToUse) <= (sizeAvailable + unforcedElements)
---constraintsSatisfiable = const True
+--constraintsSatisfiable Constraints { op1sLeftToUse, op2sLeftToUse, sizeAvailable, unforcedElements } = (length op1sLeftToUse + length op2sLeftToUse) <= (sizeAvailable + unforcedElements)
+constraintsSatisfiable = const True
 
 enumerateOp1 :: Constraints -> [(Constraints, Op1)]
 enumerateOp1 constraints@Constraints { allowedOp1s, op1sLeftToUse }

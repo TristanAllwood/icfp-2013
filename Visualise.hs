@@ -55,7 +55,7 @@ runClient handle = do
       Just size -> do
         {- Training mode -}
         trainingResponse <- trainingRequest net (TrainingRequest { tr_size      = Just size
-                                                                 , tr_operators = Just Fold })
+                                                                 , tr_operators = Just TFold })
 
 
         sampleVar <- newEmptySV
