@@ -74,7 +74,9 @@ searchExpression Unforced vals target constraints @ Constraints { sizeAvailable,
   (constraints', e) <- refine
   searchExpression e vals target constraints'
   where
-    refine = filter (constraintsSatisfiable . fst) (primitives ++ ifs ++ folds ++ op2s ++ op1s)
+    refine = if tfoldAvailable
+              then filter (constraintsSatisfiable . fst) folds
+              else filter (constraintsSatisfiable . fst) (primitives ++ ifs ++ folds ++ op2s ++ op1s)
 
     primitives = [ (constraints', Concrete x)
                  | (constraints',x) <- enumerateConcrete vals 1 constraints { sizeAvailable = sizeAvailable + 1, unforcedElements = unforcedElements - 1 }
@@ -93,9 +95,9 @@ searchExpression Unforced vals target constraints @ Constraints { sizeAvailable,
     {- TODO - c/p from syntax -}
     folds =      [ (constraints', Concrete exp)
                  | foldAvailable || tfoldAvailable
-                 , sizeAvailable + 1 >= 4
+                 , sizeAvailable + 1 >= 5
                  , (s0, s1, s2) <- S.genSizes3 sizeAvailable
-                 , (c0, e0) <- enumerateConcrete vals s0 constraints { sizeAvailable, foldAvailable = False, tfoldAvailable = False }
+                 , (c0, e0) <- enumerateConcrete vals s0 constraints { sizeAvailable = sizeAvailable + 1 - 2, foldAvailable = False, tfoldAvailable = False, unforcedElements = unforcedElements - 1 }
                  , (c1, e1) <- enumerateConcrete vals s1 c0
                  , (constraints', e2) <- enumerateConcrete (vals ++ [0,0]) s2 c1
                  , let exp = S.Fold e0 e1 e2

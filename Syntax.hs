@@ -122,9 +122,9 @@ enumerateConcrete vals sizeTarget constraints @ Constraints { sizeAvailable, tfo
 
     folds = [ (constraints', Fold e0 e1 e2)
             | foldAvailable || tfoldAvailable
-            , sizeTarget >= 4
-            , (s0, s1, s2) <- genSizes3 (sizeTarget - 1)
-            , (c0, e0) <- enumerateConcrete vals s0 constraints { sizeAvailable = sizeAvailable - 1, foldAvailable = False, tfoldAvailable = False }
+            , sizeTarget >= 5
+            , (s0, s1, s2) <- genSizes3 (sizeTarget - 2)
+            , (c0, e0) <- enumerateConcrete vals s0 constraints { sizeAvailable = sizeAvailable - 2, foldAvailable = False, tfoldAvailable = False }
             , (c1, e1) <- enumerateConcrete vals s1 c0
             , (constraints', e2) <- enumerateConcrete (vals ++ [0,0]) s2 c1
             ]
