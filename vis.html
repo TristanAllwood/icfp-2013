@@ -1,0 +1,61 @@
+<html ng-app='vis'>
+
+  <head>
+    <link rel="stylesheet" href="vis/bootstrap.min.css"></link>
+  </head>
+
+  <body ng-controller='Visualiser'>
+    <div class="container">
+
+      <h1>iclambdas icfp-2013 visualiser</h1>
+
+
+      <div class="row">
+        <div class="col-12">
+          <div>
+            <p>Websocket status: {{ ws_status }}</p>
+            <form ng-submit="train()">
+              Training Depth:<input ng-model="size" type="number"></input>
+              <input type="submit" value="Go"></input>
+            </form>
+          </div>
+
+          <h3>Input/Outputs</h3>
+
+          <div class="container" ng-repeat="pair in by_pair">
+            <div class="row">
+
+              <div class="col-4">
+                <div><code>{{pair.input.toString(16)}}</code></div>
+                <div><code>{{pair.output.toString(16)}}</code></div>
+              </div>
+
+              <div class="col-8">
+                <div>{{ pair.count }}</div>
+                <div><code>{{ pair.current_program }}</code></div>
+              </div>
+            </div>
+          </div>
+
+          <h3>Mismatches</h3>
+          <div>
+          </div>
+
+          <!--
+          <h3>Debug</h3>
+          <pre>{{ data }}</pre>
+          -->
+
+        </div>
+      </div>
+    </div>
+
+    <script src="vis/websock.js"></script>
+    <script src="vis/jquery-1.10.2.min.js"></script>
+    <script src="vis/bootstrap.min.js"></script>
+    <script src="vis/angular.min.js"></script>
+    <script src="vis/d3.v3.min.js"></script>
+    <script src="vis/visualiser.js"></script>
+  </body>
+
+</html>
