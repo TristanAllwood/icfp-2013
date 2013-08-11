@@ -74,7 +74,7 @@ evalExpression (If0 e0 e1 e2) vals
 evalExpression (Fold base init f) vals
   = let bv = evalExpression base vals
         iv = evalExpression init vals
-        bytes = map (extractByte bv) [0..7]
+        bytes = map (extractByte bv) (reverse [0..7])
      in foldr combine iv bytes
 
   where
